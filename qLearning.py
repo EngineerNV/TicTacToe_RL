@@ -39,10 +39,11 @@ class qLearning:
 		qActList = self.qTable[state]
 		return qActList[action]
 		
-	def learn(self, state, nextState, action, reward): # Q(s,a) = (1-alpha)*Q(s,a) + alpha*(R_t+gamma* Q_a max(s_t+1,a))
+	def learn(self, state, nextState, action, ticTac, player): # Q(s,a) = (1-alpha)*Q(s,a) + alpha*(R_t+gamma* Q_a max(s_t+1,a))
 		futureQList = []
+		reward = ticTac.moveReward(player)
 		qActions = self.getQ(nextState)
-		for i in self.emptySpaces():
+		for i in ticTac.emptySpaces():
 			futureQList.append(qActions[i])
 		learningChange = reward + self.discountRate*( max( futureQList ) )
 		newQValue = self.getQ(state,action)*(1-self.learningRate) + self.learningRate*learningChange
