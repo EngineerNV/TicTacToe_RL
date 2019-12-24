@@ -14,9 +14,36 @@
 # the random player will act as O
 
 
+from ticTac import ticTac
+
 class qLearning:
 	def __init__(self, alpha, gamma):
-		self.qReward = {} # this will be a dictionary where the state is the key, and the list is 
+		self.qTable = {} # this will be a dictionary where the state is the key, and the list is 
 		self.learrningRate = alpha
 		self.discountRate = gamma
+		
+	def updateQ(self, state, action, value): # this updates the q table, and intializes the Q row if not already  
+		if state in self.qTable:
+			qActList = self.qTable[state]
+			qActList[action] = value
+		else:
+			qActList = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+			qActList[action] = value
+			self.qTable[state] = qActList
 
+	def getQ(self, state, action=None):
+		if state not in self.qTable:# initialize q table state action set if not already in dictionary
+			self.qTable[state] = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+		if action == None:# return entire action list if no action specified
+			return self.qTable[state]	
+		qActList = self.qTable[state]
+		return qActList[action]
+		
+	def learn(self, state, nextState, action, reward): # Q(s,a) = (1-alpha)*Q(s,a) + alpha*(R_t+gamma* Q_a max(s_t+1,a))
+		futureQList = []
+		qActions = self.getQ(nextState)
+		for i in self.emptySpaces():
+			futureQList.append(qActions[i])
+		learningChange = reward + self.discountRate*( max( futureQList ) )
+		newQValue = self.getQ(state,action)*(1-self.learningRate) + self.learningRate*learningChange
+		self.updateQ(state, action, newQValue)
