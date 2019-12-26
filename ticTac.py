@@ -20,7 +20,7 @@ class ticTac:
 			self.board[r][c] = player
 			return True
 		else:
-			print('invalid move')
+			#print('invalid move rc')
 			return False
 
 	def playerTurn_linBoard(self, player, index): # overloading function for linear adaptation of board
@@ -29,7 +29,7 @@ class ticTac:
 			self.board[r][c] = player
 			return True
 		else:
-			print('invalid move')
+			#print('invalid move lin')
 			return False
 	
 	def moveReward(self, player): # this checks the reward we would get from the current state from an action R(s,a)
@@ -46,16 +46,16 @@ class ticTac:
 	def randomMove(self, player): # keeps running until we take up a free space
 		finished = False
 		if self.checkBoardFull():
-			return
+			return -1
 		while finished == False:
 			r = random.randint(0, 2)
 			c = random.randint(0, 2)
-			finished = self.playerTurn(player, r, c)
+			finished = self.playerTurn_rowCol(player, r, c)
+		return self.linearTuples.index((r, c))
 
 	def clearBoard(self): # clearing the board placements with 0
-		for row in self.board:
-			for element in row:
-				element = 0
+		self.playerThatWon = 0 # reset player that one value
+		self.board = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]  # setup board: 0 is empty, 1 is player 1 etc
 
 	def checkBoardFull(self): # boolean function returning True or False
 		element = 0
@@ -72,8 +72,8 @@ class ticTac:
 	def emptySpaces(self): # this will return a list of indicies of spaces left on the board, from linear format
 		board = self.linearBoard()
 		emptyIndex = []
-		for i in range(0,9):
-			if board[i] == 0: # if we have an empty spot
+		for i in range(0, 9):
+			if board[i] == 0:  # if we have an empty spot
 				emptyIndex.append(i)		
 		return emptyIndex
 	

@@ -15,7 +15,7 @@
 
 
 from ticTac import ticTac
-
+import random
 
 class qLearning:
     def __init__(self, alpha, gamma):
@@ -40,31 +40,38 @@ class qLearning:
         qActList = self.qTable[state]
         return qActList[action]
 
-    def learn(self, state, nextState, action, ticTac,
-              player):  # Q(s,a) = (1-alpha)*Q(s,a) + alpha*(R_t+gamma* Q_a max(s_t+1,a))
+    def learn(self, state, nextState, action, game, player):  # Q(s,a) = (1-alpha)*Q(s,a) + alpha*(R_t+gamma* Q_a max(s_t+1,a))
         futureQList = []
-        reward = ticTac.moveReward(player)
+        reward = game.moveReward(player)
         qActions = self.getQ(nextState)
-        for i in ticTac.emptySpaces():
+        for i in game.emptySpaces():
             futureQList.append(qActions[i])
-        learningChange = reward + self.discountRate * (max(futureQList))
+        if game.checkWin(False):  # if we have a game over there will be no future value to add
+            learningChange = reward
+        else:  # if we are still playing
+            learningChange = reward + self.discountRate * (max(futureQList))
         newQValue = self.getQ(state, action) * (1 - self.learningRate) + self.learningRate * learningChange
         self.updateQ(state, action, newQValue)
 
-q = qLearning(.5, .2)
-tic = ticTac()
-tic.playerTurn_linBoard(2, 1)
-state = tic.board2Key()
-tic.playerTurn_linBoard(1, 6)
-tic.playerTurn_linBoard(2, 2)
-nextState = tic.board2Key()
-q.learn(state, nextState, 6, tic, 1)
+    def train(self, epochs, game, ai_q, ai_random):
+        for i in range(0, epochs):  # performing the episodes
+            game.clearBoard()  # making sure we have a fresh board
+            game.randomMove(ai_random)  # making opponent make the first move
+            while game.checkWin(False) == 0:
+                state = game.board2Key()
+                explore = random.randint(0, 4)  # 25 % chance of choosing a random action
+                if explore == 0:
+                    action = game.randomMove(ai_q)
+                else:
+                    actFree = game.emptySpaces()  # these three lines make sure we don't use Qs action of filled spaces
+                    freeQ = [x for i, x in enumerate(self.getQ(state)) if i in actFree]
+                    action = actFree[freeQ.index(max(freeQ))]
+                    game.playerTurn_linBoard(ai_q, action)  # updating choice
+                game.randomMove(ai_random)  # opponent chooses
+                nextState = game.board2Key()
+                self.learn(state, nextState, action, game, ai_q) # updating Q table with moves
 
-state = tic.board2Key()
-tic.playerTurn_linBoard(1, 7)
-tic.playerTurn_linBoard(2, 0)
-nextState = tic.board2Key()
-
-
-q.learn(state, nextState, 7, tic, 1)
+q = qLearning(.6, .8)
+t = ticTac()
+q.train(50,t,2,1)
 print(q.qTable)
