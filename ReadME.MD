@@ -35,19 +35,27 @@ for amount of epochs:
     UpdateQTable 
 
 Using main.py script:
+
+
 there is no error checking, so make sure to check arguments!
 
 example running the code, made for python 3
 play test against the AI yourself, with trained weights
+
+
 python3 main.py -p table.json
 
 -------------------------------------------------------------
 train the AI against a random agent with alpha and gamma.
 alpha is learning rate, gamma is discount rate--> closer to 1
 means you value future rewards more, saves the weights
+
+
 python3 main.py -train table.json 10000 alpha gamma
+
 python3 main.py -train table.json 10000 .6 .8
 
 --------------------------------------------------------------
 test the ai over a certain amount of games against a random agent, with loaded weights
+
 python3 main.py -test table.json 100
