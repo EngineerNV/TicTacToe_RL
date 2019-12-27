@@ -21,11 +21,17 @@ LearningChange = R(s_prime,a)+ gamma*maxQ(s_prime,all a's)
 Q(s,action) = Q(s, action) * (1 - alpha) + alpha * learningChange
 
 Main Algorithm for learning: 
+
 for amount of epochs:
-  opponent_moves
+
+ opponent_moves
+
   while GameNotOver:
+  
     AI_Moves
+    
     opponent_moves
+    
     UpdateQTable 
 
 Using main.py script:
