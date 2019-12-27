@@ -16,12 +16,22 @@
 
 from ticTac import ticTac
 import random
-
+import json
 class qLearning:
     def __init__(self, alpha, gamma):
         self.qTable = {}  # this will be a dictionary where the state is the key, and the list is
         self.learningRate = alpha
         self.discountRate = gamma
+
+    def loadTable(self, fileName):
+        with open(fileName, 'r') as fp:
+            self.qTable = json.load(fp)
+            fp.close()
+
+    def saveTable(self, fileName):
+        with open(fileName, 'w') as fp:
+            json.dump(self.qTable, fp)
+            fp.close()
 
     def updateQ(self, state, action, value):  # this updates the q table, and intializes the Q row if not already
         if state in self.qTable:
@@ -53,6 +63,13 @@ class qLearning:
         newQValue = self.getQ(state, action) * (1 - self.learningRate) + self.learningRate * learningChange
         self.updateQ(state, action, newQValue)
 
+    def q_game_move(self, game, state, ai_q):
+        actFree = game.emptySpaces()  # these three lines make sure we don't use Qs action of filled spaces
+        freeQ = [x for i, x in enumerate(self.getQ(state)) if i in actFree]
+        action = actFree[freeQ.index(max(freeQ))]
+        game.playerTurn_linBoard(ai_q, action)  # updating choice
+        return action
+
     def train(self, epochs, game, ai_q, ai_random):
         for i in range(0, epochs):  # performing the episodes
             game.clearBoard()  # making sure we have a fresh board
@@ -63,15 +80,35 @@ class qLearning:
                 if explore == 0:
                     action = game.randomMove(ai_q)
                 else:
-                    actFree = game.emptySpaces()  # these three lines make sure we don't use Qs action of filled spaces
-                    freeQ = [x for i, x in enumerate(self.getQ(state)) if i in actFree]
-                    action = actFree[freeQ.index(max(freeQ))]
-                    game.playerTurn_linBoard(ai_q, action)  # updating choice
+                    action = self.q_game_move(game, state, ai_q)
                 game.randomMove(ai_random)  # opponent chooses
                 nextState = game.board2Key()
-                self.learn(state, nextState, action, game, ai_q) # updating Q table with moves
+                self.learn(state, nextState, action, game, ai_q)  # updating Q table with moves
+
+    def test(self, trials, game, ai_q, ai_random):
+        tie, win, lose = 0, 0, 0
+        for i in range(0, trials):
+            game.clearBoard()  # making sure we have a fresh board
+            game.randomMove(ai_random)  # making opponent make the first move
+            while game.checkWin(False) == 0:
+                state = game.board2Key()
+                self.q_game_move(game, state, ai_q)
+                game.randomMove(ai_random)
+            if game.checkWin(False) == 2:
+                tie = tie + 1
+            elif game.checkWin(False) == 1:
+                win = win + 1
+            else:
+                lose = lose + 1
+        print('Tic Tac Stats ---> '+ str(trials) + ' games' )
+        print("Win percent:" + str(win/trials*100) + "%")
+        print("Tie percent:" + str(tie / trials * 100) + "%")
+        print("Lose percent:" + str(lose / trials * 100) + "%")
 
 q = qLearning(.6, .8)
 t = ticTac()
-q.train(50,t,2,1)
-print(q.qTable)
+#q.train(100000, t, 2, 1)
+#q.saveTable('table.json')
+q.loadTable('table.json')
+q.test(1000, t, 2, 1)
+#print(q.qTable)
