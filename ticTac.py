@@ -12,7 +12,13 @@ class ticTac:
 	def printBoard(self):
 		for row in self.board:
 			for element in row:
-				print(str(element) + '\t', end='')
+				if element == 1:
+					token = 'O'
+				elif element == 2:
+					token = 'X'
+				else:
+					token = '*'
+				print(token + '\t', end='')
 			print(end='\n')
 
 	def playerTurn_rowCol(self, player, r, c): # taking up board
