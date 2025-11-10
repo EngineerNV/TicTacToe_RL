@@ -1,0 +1,10 @@
+# TicTacToe_RL Requirements
+# This project uses only Python standard library modules
+# No external dependencies required!
+
+# Python Version: 3.x (tested with 3.12.3)
+
+# Standard Library Modules Used:
+# - random (for exploration and random opponent)
+# - json (for Q-table persistence)
+# - sys (for command-line arguments)
