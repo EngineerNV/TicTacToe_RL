@@ -125,6 +125,8 @@ class qLearning:
 
         The AI plays as `ai_player`, the random agent as `random_player`.
         """
+        if epochs <= 0:
+            return
         epsilon       = epsilon_start
         epsilon_decay = (epsilon_start - epsilon_end) / epochs
 

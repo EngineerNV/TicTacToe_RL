@@ -463,6 +463,9 @@ class TicTacToeApp:
         """Called on the main thread to update training widgets."""
         if not hasattr(self, '_train_cells'):
             return
+        # Widgets may have been destroyed if the user navigated away mid-training
+        if not self._train_cells[0].winfo_exists():
+            return
 
         # Draw board
         for i, lbl in enumerate(self._train_cells):
@@ -490,7 +493,8 @@ class TicTacToeApp:
 
     def _training_finished(self):
         self._training = False
-        if hasattr(self, '_start_btn'):
+        # Guard: buttons may have been destroyed if the user navigated away
+        if hasattr(self, '_start_btn') and self._start_btn.winfo_exists():
             self._start_btn.config(state='normal')
             self._stop_btn.config(state='disabled')
         if hasattr(self, '_train_q'):
