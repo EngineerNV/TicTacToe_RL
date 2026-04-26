@@ -1,114 +1,191 @@
-# this class is used to implement Q learning techniques for a tictactoe game
-# it is assumed that the ai is always going second while playing 
+"""
+qLearning.py  --  TicTacToe RL  |  EngineerNV
+Q-Learning agent for Tic-Tac-Toe.
 
-# actions correlate to this format, of what cell would be taken
-# the state is the combo of different x and o's on the board
-# Board 3x3
-#  0	1	  2
-#  3    4     5
-#  6    7     8
-# this relies on class objects from ticTac.py
-# the board is a double list of integers
-# 0 == empty, 1 == O, 2 == X
-# the AI player will act as X
-# the random player will act as O
+Board positions (linear index):
+  0 | 1 | 2
+  3 | 4 | 5
+  6 | 7 | 8
 
+Values:  0 = empty,  1 = O (opponent),  2 = X (AI)
+The AI always plays as X (player 2).
+"""
 
-from ticTac import ticTac
 import random
 import json
-class qLearning:
-    def __init__(self, alpha, gamma):
-        self.qTable = {}  # this will be a dictionary where the state is the key, and the list is
-        self.learningRate = alpha
-        self.discountRate = gamma
 
-    def loadTable(self, fileName):
+from ticTac import ticTac
+
+
+class qLearning:
+    def __init__(self, alpha: float, gamma: float):
+        """
+        alpha (learning rate)  – how strongly each new experience updates Q-values.
+                                  Range 0–1; 0.6 is a solid default.
+        gamma (discount factor)– how much future rewards are valued relative to
+                                  immediate ones. Range 0–1; 0.8 is a solid default.
+        """
+        self.learningRate  = alpha
+        self.discountRate  = gamma
+        self.qTable: dict  = {}   # state-string -> list of 9 Q-values
+
+    # -----------------------------------------------------------------------
+    # Persistence
+    # -----------------------------------------------------------------------
+
+    def loadTable(self, fileName: str):
+        """Load a previously trained Q-table from a JSON file."""
         with open(fileName, 'r') as fp:
             self.qTable = json.load(fp)
-            fp.close()
 
-    def saveTable(self, fileName):
+    def saveTable(self, fileName: str):
+        """Persist the current Q-table to a JSON file."""
         with open(fileName, 'w') as fp:
             json.dump(self.qTable, fp)
-            fp.close()
 
-    def updateQ(self, state, action, value):  # this updates the q table, and intializes the Q row if not already
-        if state in self.qTable:
-            qActList = self.qTable[state]
-            qActList[action] = value
-        else:
-            qActList = [0, 0, 0, 0, 0, 0, 0, 0, 0]
-            qActList[action] = value
-            self.qTable[state] = qActList
+    # -----------------------------------------------------------------------
+    # Q-table access
+    # -----------------------------------------------------------------------
 
-    def getQ(self, state, action=None):
-        if state not in self.qTable:  # initialize q table state action set if not already in dictionary
-            self.qTable[state] = [0, 0, 0, 0, 0, 0, 0, 0, 0]
-        if action == None:  # return entire action list if no action specified
+    def getQ(self, state: str, action: int | None = None):
+        """
+        Return Q-value(s) for a state.
+        If action is None, returns the full list of 9 Q-values.
+        Unseen states are initialised to all zeros (optimistic start).
+        """
+        if state not in self.qTable:
+            self.qTable[state] = [0.0] * 9
+        if action is None:
             return self.qTable[state]
-        qActList = self.qTable[state]
-        return qActList[action]
+        return self.qTable[state][action]
 
-    def learn(self, state, nextState, action, game, player):  # Q(s,a) = (1-alpha)*Q(s,a) + alpha*(R_t+gamma* Q_a max(s_t+1,a))
-        futureQList = []
+    def updateQ(self, state: str, action: int, value: float):
+        """Write a single Q-value into the table, initialising the row if needed."""
+        row = self.getQ(state)   # ensures row exists
+        row[action] = value
+
+    # -----------------------------------------------------------------------
+    # Learning update  (Bellman equation)
+    # -----------------------------------------------------------------------
+
+    def learn(self, state: str, nextState: str, action: int,
+              game: ticTac, player: int):
+        """
+        Apply the Q-Learning update rule:
+
+          Q(s, a)  ←  (1 - α) · Q(s, a)
+                     + α · [ R(s, a) + γ · max_a' Q(s', a') ]
+
+        The reward R is computed from the game's current outcome.
+        If the game is over there are no future Q-values to add.
+        """
         reward = game.moveReward(player)
-        qActions = self.getQ(nextState)
-        for i in game.emptySpaces():
-            futureQList.append(qActions[i])
-        if game.checkWin(False):  # if we have a game over there will be no future value to add
-            learningChange = reward
-        else:  # if we are still playing
-            learningChange = reward + self.discountRate * (max(futureQList))
-        newQValue = self.getQ(state, action) * (1 - self.learningRate) + self.learningRate * learningChange
-        self.updateQ(state, action, newQValue)
 
-    def q_game_move(self, game, state, ai_q):
-        actFree = game.emptySpaces()  # these three lines make sure we don't use Qs action of filled spaces
-        freeQ = [x for i, x in enumerate(self.getQ(state)) if i in actFree]
-        action = actFree[freeQ.index(max(freeQ))]
-        game.playerTurn_linBoard(ai_q, action)  # updating choice
+        if game.checkWin(False):
+            # Terminal state: no future value
+            target = reward
+        else:
+            # Only consider Q-values for cells that are still empty
+            future_qs = [self.getQ(nextState)[i] for i in game.emptySpaces()]
+            target = reward + self.discountRate * max(future_qs)
+
+        current  = self.getQ(state, action)
+        new_val  = current * (1 - self.learningRate) + self.learningRate * target
+        self.updateQ(state, action, new_val)
+
+    # -----------------------------------------------------------------------
+    # Action selection
+    # -----------------------------------------------------------------------
+
+    def q_game_move(self, game: ticTac, state: str, ai_player: int) -> int:
+        """
+        Pure exploitation: pick the legal move with the highest Q-value.
+        Returns the linear board index of the chosen action.
+        """
+        empty   = game.emptySpaces()
+        q_vals  = self.getQ(state)
+        # Filter to only legal (empty) cells, then pick the argmax
+        action  = max(empty, key=lambda i: q_vals[i])
+        game.playerTurn_linBoard(ai_player, action)
         return action
 
-    def train(self, epochs, game, ai_q, ai_random):
-        for i in range(0, epochs):  # performing the episodes
-            game.clearBoard()  # making sure we have a fresh board
-            game.randomMove(ai_random)  # making opponent make the first move
+    # -----------------------------------------------------------------------
+    # CLI training loop  (epsilon-greedy with linear decay)
+    # -----------------------------------------------------------------------
+
+    def train(self, epochs: int, game: ticTac, ai_player: int,
+              random_player: int, epsilon_start: float = 0.90,
+              epsilon_end: float = 0.05):
+        """
+        Train for `epochs` episodes against a random opponent.
+
+        Exploration follows a linearly-decaying epsilon schedule:
+          - Starts at epsilon_start (lots of exploration early on)
+          - Decays to epsilon_end   (mostly exploitation by the end)
+
+        The AI plays as `ai_player`, the random agent as `random_player`.
+        """
+        if epochs <= 0:
+            return
+        epsilon       = epsilon_start
+        epsilon_decay = (epsilon_start - epsilon_end) / epochs
+
+        for _ in range(epochs):
+            game.clearBoard()
+            game.randomMove(random_player)   # opponent goes first
+
             while game.checkWin(False) == 0:
                 state = game.board2Key()
-                explore = random.randint(0, 4)  # 25 % chance of choosing a random action
-                if explore == 0:
-                    action = game.randomMove(ai_q)
+
+                # Epsilon-greedy: explore or exploit
+                if random.random() < epsilon:
+                    action = game.randomMove(ai_player)
                 else:
-                    action = self.q_game_move(game, state, ai_q)
-                game.randomMove(ai_random)  # opponent chooses
-                nextState = game.board2Key()
-                self.learn(state, nextState, action, game, ai_q)  # updating Q table with moves
+                    action = self.q_game_move(game, state, ai_player)
 
-    def test(self, trials, game, ai_q, ai_random):
-        tie, win, lose = 0, 0, 0
-        for i in range(0, trials):
-            game.clearBoard()  # making sure we have a fresh board
-            game.randomMove(ai_random)  # making opponent make the first move
+                if action == -1:
+                    break   # board full guard
+
+                # Opponent responds — only if the game is still going
+                if game.checkWin(False) == 0:
+                    game.randomMove(random_player)
+
+                next_state = game.board2Key()
+                self.learn(state, next_state, action, game, ai_player)
+
+            epsilon = max(epsilon_end, epsilon - epsilon_decay)
+
+    # -----------------------------------------------------------------------
+    # Evaluation loop
+    # -----------------------------------------------------------------------
+
+    def test(self, trials: int, game: ticTac, ai_player: int,
+             random_player: int):
+        """
+        Run `trials` games (pure exploitation, no exploration) and print stats.
+        """
+        wins = ties = losses = 0
+
+        for _ in range(trials):
+            game.clearBoard()
+            game.randomMove(random_player)
+
             while game.checkWin(False) == 0:
                 state = game.board2Key()
-                self.q_game_move(game, state, ai_q)
-                game.randomMove(ai_random)
-            if game.checkWin(False) == 2:
-                tie = tie + 1
-            elif game.checkWin(False) == 1:
-                win = win + 1
-            else:
-                lose = lose + 1
-        print('Tic Tac Stats ---> '+ str(trials) + ' games' )
-        print("Win percent:" + str(win/trials*100) + "%")
-        print("Tie percent:" + str(tie / trials * 100) + "%")
-        print("Lose percent:" + str(lose / trials * 100) + "%")
+                self.q_game_move(game, state, ai_player)
+                # Opponent responds only if AI didn't just end the game
+                if game.checkWin(False) == 0:
+                    game.randomMove(random_player)
 
-# q = qLearning(.6, .8)
-# t = ticTac()
-#q.train(100000, t, 2, 1)
-#q.saveTable('table.json')
-# q.loadTable('table.json')
-# q.test(1000, t, 2, 1)
-#print(q.qTable)
+            result = game.checkWin(False)
+            if result == 2:
+                ties += 1
+            elif game.playerThatWon == ai_player:
+                wins += 1
+            else:
+                losses += 1
+
+        print(f'Tic Tac Stats  -->  {trials} games')
+        print(f'  Win  : {wins   / trials * 100:.1f}%')
+        print(f'  Tie  : {ties   / trials * 100:.1f}%')
+        print(f'  Loss : {losses / trials * 100:.1f}%')

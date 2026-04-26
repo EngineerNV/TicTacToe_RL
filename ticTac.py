@@ -1,132 +1,165 @@
-# created by EngineerNV github
-# this code is the main logic for a tic tac toe
-# it is a class that holds all of the logic and win conditions
-# tracks player one and player two
+"""
+ticTac.py  --  TicTacToe RL  |  EngineerNV
+Game engine for Tic-Tac-Toe.
+
+Board is a 3x3 nested list.
+  0 = empty cell
+  1 = Player O
+  2 = Player X
+
+Linear index mapping (left-to-right, top-to-bottom):
+  0 | 1 | 2
+  3 | 4 | 5
+  6 | 7 | 8
+"""
+
 import random
 
+
 class ticTac:
-	def __init__(self):
-		self.board = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]  # setup board: 0 is empty, 1 is player 1 etc
-		self.linearTuples = [(0,0),(0,1),(0,2),(1,0),(1,1),(1,2),(2,0),(2,1),(2,2)]
-		self.playerThatWon = 0
-	def printBoard(self):
-		for row in self.board:
-			for element in row:
-				if element == 1:
-					token = 'O'
-				elif element == 2:
-					token = 'X'
-				else:
-					token = '*'
-				print(token + '\t', end='')
-			print(end='\n')
+    def __init__(self):
+        self.board           = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+        self.playerThatWon   = 0
+        # Lookup table: linear index -> (row, col)
+        self._idx_to_rc      = [
+            (0, 0), (0, 1), (0, 2),
+            (1, 0), (1, 1), (1, 2),
+            (2, 0), (2, 1), (2, 2),
+        ]
 
-	def playerTurn_rowCol(self, player, r, c): # taking up board
-		if self.board[r][c] == 0:
-			self.board[r][c] = player
-			return True
-		else:
-			#print('invalid move rc')
-			return False
+    # -----------------------------------------------------------------------
+    # Display
+    # -----------------------------------------------------------------------
 
-	def playerTurn_linBoard(self, player, index): # overloading function for linear adaptation of board
-		r, c = self.linearTuples[index] 
-		if self.board[r][c] == 0:
-			self.board[r][c] = player
-			return True
-		else:
-			#print('invalid move lin')
-			return False
-	
-	def moveReward(self, player): # this checks the reward we would get from the current state from an action R(s,a)
-		if self.checkWin(False) != 0: # if we have an end game
-			if player == self.playerThatWon:
-				return 10
-			elif self.playerThatWon == 0:
-				return 5
-			else:
-				return -40
-		else:
-			return 0
-	
-	def randomMove(self, player): # keeps running until we take up a free space
-		finished = False
-		if self.checkBoardFull():
-			return -1
-		while finished == False:
-			r = random.randint(0, 2)
-			c = random.randint(0, 2)
-			finished = self.playerTurn_rowCol(player, r, c)
-		return self.linearTuples.index((r, c))
+    def printBoard(self):
+        """Print the board to stdout using O / X / * symbols."""
+        symbols = {1: 'O', 2: 'X', 0: '*'}
+        for row in self.board:
+            print('\t'.join(symbols[v] for v in row))
 
-	def clearBoard(self): # clearing the board placements with 0
-		self.playerThatWon = 0 # reset player that one value
-		self.board = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]  # setup board: 0 is empty, 1 is player 1 etc
+    # -----------------------------------------------------------------------
+    # Move placement
+    # -----------------------------------------------------------------------
 
-	def checkBoardFull(self): # boolean function returning True or False
-		element = 0
-		return 1 ^ (any(element in rowList for rowList in self.board))
-	
-	def linearBoard(self): # this returns a board in a 0...8 format from left to right top to bottom
-		return (self.board[0] + self.board[1] + self.board[2])
-	
-	def board2Key(self): # this will return a string key of the current state of the board
-		linB = self.linearBoard() 
-		return ( str(linB[0]) + str(linB[1]) + str(linB[2]) + str(linB[3]) + str(linB[4]) + str(linB[5]) + str(linB[6]) + str(linB[7]) + str(linB[8]) )
-	
-	
-	def emptySpaces(self): # this will return a list of indicies of spaces left on the board, from linear format
-		board = self.linearBoard()
-		emptyIndex = []
-		for i in range(0, 9):
-			if board[i] == 0:  # if we have an empty spot
-				emptyIndex.append(i)		
-		return emptyIndex
-	
-	def checkWin(self, verbose):  # checking win conditions
-		maxRow, maxCol = 3, 3
-		if self.checkBoardFull() == True:
-			if verbose:
-				print("Tie Game")
-			return 2  # special output for a tie
-		for r in range(maxRow):
-			for c in range(maxCol):
-				player = self.board[r][c]
-				self.playerThatWon = player
-				if r == 0 and c == 0 and player != 0:  # if we have a player spot in top left corner
-					if self.board[r+1][c+1] == self.board[r+2][c+2] == player:
-						if verbose:
-							print('Player '+str(player) + ' Wins!')
-						return True
-					elif self.board[r+1][c] == self.board[r+2][c] == player:  # down horizontal
-						if verbose:
-							print('Player ' + str(player) + ' Wins!')
-						return True
-					elif self.board[r][c+1] == self.board[r][c+2] == player:  # right horizontal
-						if verbose:
-							print('Player ' + str(player) + ' Wins!')
-						return True
-				elif r == 2 and c == 2 and player != 0:  # if we have a player spot in bottom right corner
-					if self.board[r][c-2] == self.board[r][c-1] == player:  # right horizontal
-						if verbose:
-							print('Player ' + str(player) + ' Wins!')
-						return True
-					elif self.board[r-2][c] == self.board[r-1][c] == player:  # up horizontal
-						if verbose:
-							print('Player ' + str(player) + ' Wins!')
-						return True
-				elif r == 0 and c == 2 and player != 0:  # if we have a player spot in top right corner
-					if self.board[r+2][c-2] == self.board[r+1][c-1] == player:
-						if verbose:
-							print('Player ' + str(player) + ' Wins!')
-						return True
-		self.playerThatWon = 0
-		return False
+    def playerTurn_rowCol(self, player: int, r: int, c: int) -> bool:
+        """Place a token at (row, col). Returns False if the cell is taken."""
+        if self.board[r][c] != 0:
+            return False
+        self.board[r][c] = player
+        return True
 
-# a = ticTac()
-# a.playerTurn_linBoard(1,8)
-# a.playerTurn_linBoard(2,3)
-# a.playerTurn_linBoard(2,0)
-# a.playerTurn_linBoard(2,6)
-# a.printBoard()
-# print(a.board2Key())
+    def playerTurn_linBoard(self, player: int, index: int) -> bool:
+        """Place a token using a linear index 0-8. Returns False if taken."""
+        r, c = self._idx_to_rc[index]
+        return self.playerTurn_rowCol(player, r, c)
+
+    def randomMove(self, player: int) -> int:
+        """
+        Make a uniformly random legal move for `player`.
+        Returns the linear index of the chosen cell, or -1 if the board is full.
+        """
+        if self.checkBoardFull():
+            return -1
+        empty = self.emptySpaces()
+        index = random.choice(empty)
+        self.playerTurn_linBoard(player, index)
+        return index
+
+    # -----------------------------------------------------------------------
+    # Board state queries
+    # -----------------------------------------------------------------------
+
+    def clearBoard(self):
+        """Reset the board and winner tracking to the initial state."""
+        self.board         = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+        self.playerThatWon = 0
+
+    def linearBoard(self) -> list:
+        """Return the board as a flat list of 9 values (row-major order)."""
+        return self.board[0] + self.board[1] + self.board[2]
+
+    def board2Key(self) -> str:
+        """
+        Encode the current board state as a 9-character string.
+        Used as the dictionary key in the Q-table.
+        e.g. '000210020'
+        """
+        return ''.join(str(v) for v in self.linearBoard())
+
+    def emptySpaces(self) -> list:
+        """Return a list of linear indices for all unoccupied cells."""
+        return [i for i, v in enumerate(self.linearBoard()) if v == 0]
+
+    def checkBoardFull(self) -> bool:
+        """Return True if every cell is occupied (no empty spaces left)."""
+        return all(v != 0 for row in self.board for v in row)
+
+    # -----------------------------------------------------------------------
+    # Reward for RL
+    # -----------------------------------------------------------------------
+
+    def moveReward(self, player: int) -> float:
+        """
+        Return the immediate reward for `player` given the current board:
+          +10  win
+          + 5  tie
+          -40  loss  (high penalty encourages the AI to avoid losing)
+            0  game still in progress
+        """
+        outcome = self.checkWin(False)
+        if outcome == 0 or outcome is False:
+            return 0       # game still going
+        if self.playerThatWon == player:
+            return 10      # win
+        if self.playerThatWon == 0:
+            return 5       # tie
+        return -40         # loss
+
+    # -----------------------------------------------------------------------
+    # Win detection
+    # -----------------------------------------------------------------------
+
+    def checkWin(self, verbose: bool):
+        """
+        Check all win conditions on the current board.
+
+        Returns:
+          True  – a player has three in a row (sets self.playerThatWon)
+          2     – the board is full with no winner (tie)
+          False – game is still in progress
+
+        Pass verbose=True to print the result to stdout.
+        """
+        b = self.board
+
+        # Check all rows, columns, and the two diagonals
+        lines = [
+            # rows
+            [b[0][0], b[0][1], b[0][2]],
+            [b[1][0], b[1][1], b[1][2]],
+            [b[2][0], b[2][1], b[2][2]],
+            # columns
+            [b[0][0], b[1][0], b[2][0]],
+            [b[0][1], b[1][1], b[2][1]],
+            [b[0][2], b[1][2], b[2][2]],
+            # diagonals
+            [b[0][0], b[1][1], b[2][2]],
+            [b[0][2], b[1][1], b[2][0]],
+        ]
+
+        for line in lines:
+            if line[0] != 0 and line[0] == line[1] == line[2]:
+                self.playerThatWon = line[0]
+                if verbose:
+                    print(f'Player {line[0]} Wins!')
+                return True
+
+        # No winner yet — check for tie
+        if self.checkBoardFull():
+            self.playerThatWon = 0
+            if verbose:
+                print('Tie Game')
+            return 2
+
+        self.playerThatWon = 0
+        return False
